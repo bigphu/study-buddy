@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+/* 1. DEFINE YOUR THEME VARIABLES
+   By adding --color-*, Tailwind automatically creates bg-*, text-*, border-* classes.
+   By adding --font-*, Tailwind creates font-* classes.
+*/
+@theme {
+  /* --- Fonts --- */
+  --font-roboto: "Roboto", sans-serif;
+  --font-outfit: "Outfit", sans-serif;
+
+  /* --- Brand Colors (from color.css) --- */
+  --color-primary: #0b1b43;          /* usage: bg-primary, text-primary */
+  --color-primary-accent: #032b91;   /* usage: bg-primary-accent */
+  --color-secondary-accent: #1488d8; /* usage: bg-secondary-accent */
+  --color-background: #cad3d9;
+  --color-surface: #ffffff;
+  --color-border: #1488d8;
+
+  /* --- Text Colors (from typography.css) --- */
+  /* Renamed with 'txt-' prefix to avoid conflict with brand colors */
+  --color-txt-primary: #032b91;      /* usage: text-txt-primary */
+  --color-txt-accent: #1488d8;       /* usage: text-txt-accent */
+  --color-txt-placeholder: #a7b2b9;
+  --color-txt-dark: #33363f;
+  --color-txt-light: #ffffff;
+}
