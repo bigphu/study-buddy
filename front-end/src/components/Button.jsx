@@ -23,7 +23,7 @@ const Button = ({
     primary:
       'bg-primary-accent text-white hover:bg-secondary-accent active:bg-primary focus:ring-primary-accent hover:shadow-lg hover:shadow-primary-accent/30',
     secondary:
-      'bg-white text-txt-dark border border-txt-placeholder hover:bg-txt-placeholder/10 active:bg-txt-dark active:text-txt-light focus:ring-txt-dark',
+      'bg-white text-txt-dark border border-txt-dark hover:bg-txt-placeholder/10 active:bg-txt-dark active:text-txt-light focus:ring-txt-dark',
     third:
       'bg-black text-txt-light hover:bg-txt-dark/90 active:bg-txt-light active:text-txt-dark focus:ring-txt-dark',
     danger:

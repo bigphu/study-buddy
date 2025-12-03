@@ -51,7 +51,7 @@ const SearchBar = ({
     <div className={`flex w-full justify-between items-center gap-2 ${className}`}>
       {/* Search zone */}
       <div className='group w-full'>
-        <div className='flex items-center border focus-within:ring-2 focus-within:ring-offset-2 border-txt-dark transition-all duration-200 focus-within:outline-none group-focus-within:ring-border gap-2 py-2 px-6 rounded-lg'>
+        <div className='flex items-center border focus-within:ring-2 focus-within:ring-offset-2 border-txt-dark transition-all duration-200 focus-within:outline-none group-focus-within:ring-border gap-2 py-2 px-6 rounded-lg bg-surface'>
           <div className='text-txt-dark group-focus-within:text-txt-accent'>
             <Search size={16} />
           </div>
