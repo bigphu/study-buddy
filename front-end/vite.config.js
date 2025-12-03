@@ -8,5 +8,8 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  
+  server: {
+    // Allows any host (useful for ngrok/tunneling)
+    allowedHosts: true, 
+  },
 })

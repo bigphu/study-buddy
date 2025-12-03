@@ -2,12 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { List } from 'lucide-react'
 
 import Tray from '../components/Tray.jsx';
-import Button from '../components/Button.jsx'; // Still needed if you use it elsewhere, though Pagination imports it internally
 import SearchBar from '../components/SearchBar.jsx';
 import CardItem from '../components/CardItem.jsx';
 import Pagination from '../components/Pagination.jsx';
+import Loading from '../components/Loading.jsx';
 
 const ITEMS_PER_PAGE = 12;
+
+// Custom Rank for Status Sorting
+// Higher number = Higher priority in Descending order
+const STATUS_RANK = {
+  'Ongoing': 3,
+  'Processing': 2,
+  'Ended': 1
+};
 
 const LinksCenter = () => {
   // --- 1. State Management ---
@@ -26,15 +34,22 @@ const LinksCenter = () => {
     const fetchLinks = async () => {
       try {
         setIsLoading(true);
-        // MOCK DATA (Generating 50 items to demonstrate pagination overflow)
-        const mockData = Array.from({ length: 1000 }).map((_, idx) => ({
-          id: idx,
-          courseId: `CO${2000 + idx}`,
-          tutorName: idx % 2 === 0 ? 'P-chan' : 'Dr. Smith',
-          title: idx % 3 === 0 ? 'Data Structures' : 'Linear Algebra',
-          description: `Session description for item ${idx + 1}`,
-          status: idx % 4 === 0 ? 'Ended' : 'Ongoing'
-        }));
+        // MOCK DATA (Updated to include 'Processing' for testing sort)
+        const mockData = Array.from({ length: 100 }).map((_, idx) => {
+          // Generate a random status for demonstration
+          let status = 'Ongoing';
+          if (idx % 3 === 0) status = 'Ended';
+          else if (idx % 3 === 1) status = 'Processing';
+
+          return {
+            id: idx,
+            courseId: `CO${2000 + idx}`,
+            tutorName: idx % 2 === 0 ? 'TS. Nguyễn Anh Khoa' : 'Dr. Smith',
+            title: idx % 3 === 0 ? 'Data Structures' : 'Linear Algebra',
+            description: `Session description for item ${idx + 1}`,
+            status: status
+          };
+        });
 
         setTimeout(() => {
           setLinks(mockData);
@@ -52,7 +67,7 @@ const LinksCenter = () => {
   const processedLinks = useMemo(() => {
     let result = [...links];
 
-    // Filter
+    // Filter (Unmodified from original)
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
       const attributeMap = [
@@ -89,9 +104,14 @@ const LinksCenter = () => {
       switch (sortBy) {
         case 'Tutor name': valA = a.tutorName; valB = b.tutorName; break;
         case 'Title': valA = a.title; valB = b.title; break;
-        case 'Status': valA = a.status; valB = b.status; break;
+        case 'Status': 
+          // Use the Custom Rank Lookups
+          valA = STATUS_RANK[a.status] || 0; 
+          valB = STATUS_RANK[b.status] || 0; 
+          break;
         default: valA = a.tutorName; valB = b.tutorName;
       }
+      
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -114,12 +134,12 @@ const LinksCenter = () => {
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      // window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   return (
     <>
+      {/* Header */}
       <div className='col-start-2 col-span-10 flex flex-col min-h-[10vh] p-8 pb-0 items-center justify-center bg-transparent '>
         <div className='font-outfit text-primary-accent text-6xl font-extrabold'>
           Links Center
@@ -153,13 +173,15 @@ const LinksCenter = () => {
           <div className="flex items-center justify-start gap-2 w-full border-b border-gray-100 pb-4 mb-2">
             <List className="text-primary-accent" size={24} />
             <h2 className="text-2xl font-bold font-outfit text-primary-accent">
-              Search Results
+              Your Courses
             </h2>
           </div>
         }
       >
         {isLoading ? (
-          <div className="col-span-full text-center py-10">Loading...</div>
+          <div className="col-span-full text-center py-10">
+            <Loading text='Loading your courses...'></Loading>
+          </div>
         ) : currentItems.length > 0 ? (
           currentItems.map((link) => (
             <CardItem

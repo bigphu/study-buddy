@@ -11,8 +11,8 @@ const Page404 = () => {
 
   return (
     <>
-      <Tray pos='col-start-5' size='col-span-4' className='justify-center'>
-
+      <Tray pos='col-start-5' size='col-span-4' className='self-center'>
+        <div className='flex flex-col items-center gap-4 justify-center'>
           <img className='w-[80%]' src={miku404} ></img>
 
           <div className='text-txt-primary text-2xl font-bold mb-2'>
@@ -20,6 +20,7 @@ const Page404 = () => {
           </div>
 
           <Button onClick={() => navigate('/home')}>Back to home</Button>
+        </div>
       </Tray>
     </>
   )

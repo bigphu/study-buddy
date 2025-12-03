@@ -28,7 +28,7 @@ const SearchBar = ({
     if (onSearch) {
       // If value is empty, immediately trigger the default search logic
       if (val.trim() === '') {
-        onSearch(defaultSearchValue);
+        // onSearch(defaultSearchValue);
       } else {
         onSearch(val);
       }

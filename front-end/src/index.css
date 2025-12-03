@@ -25,3 +25,7 @@
   --color-txt-dark: #33363f;
   --color-txt-light: #ffffff;
 }
+
+body {
+  zoom: 80%; /* Scales everything down to 80% */
+}
