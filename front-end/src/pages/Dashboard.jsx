@@ -90,18 +90,28 @@ const Dashboard = () => {
 
       {/* --- SECTION 1: UPCOMING SESSIONS --- */}
 
-      <Tray pos='col-start-2' size='col-span-10'>
-        <div className="flex items-center justify-start gap-2 w-full">
-          <Clock className="text-primary-accent" size={24} />
-          <h2 className="text-2xl font-bold font-outfit text-primary-accent">Upcoming Sessions</h2>
-        </div>
-
-        <div className='grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 justify-items-center'>
-          {isLoading ? (
-            <div className="col-span-full text-center text-md font-medium font-outfit text-primary-accent py-10">Loading...</div>
-          ) : upcomingSessions.length > 0 ? (
-            upcomingSessions.map((session) => (
-              <CardItem
+      <Tray 
+        pos="col-start-2" 
+        size="col-span-10" 
+        variant="grid" // This tells the children to display as a grid
+        title={
+          // We pass the header JSX into the title prop
+          <div className="flex items-center justify-start gap-2 w-full border-b border-gray-100 pb-4 mb-2">
+            <Clock className="text-primary-accent" size={24} />
+            <h2 className="text-2xl font-bold font-outfit text-primary-accent">
+              Upcoming Sessions
+            </h2>
+          </div>
+        }
+      >
+        {/* The Children are now strictly the content items */}
+        {isLoading ? (
+          <div className="col-span-full text-center text-md font-medium font-outfit text-primary-accent py-10">
+            Loading...
+          </div>
+        ) : upcomingSessions.length > 0 ? (
+          upcomingSessions.map((session) => (
+            <CardItem
               key={session.id}
               variant="session"
               itemId={session.course_id}
@@ -111,14 +121,13 @@ const Dashboard = () => {
               endTime={session.end_time}
               link={session.link}
               onAction={() => console.log(`Navigating to session ${session.id}`)}
-              />
-            ))
-          ) : (
-            <div className="col-span-full text-center text-md font-medium font-outfit text-txt-placeholder py-10">
-              No upcoming sessions found.
-            </div>
-          )}
-        </div>
+            />
+          ))
+        ) : (
+          <div className="col-span-full text-center text-md font-medium font-outfit text-txt-placeholder py-10">
+            No upcoming sessions found.
+          </div>
+        )}
       </Tray>
 
       {/* --- SECTION 2: CALENDAR --- */}

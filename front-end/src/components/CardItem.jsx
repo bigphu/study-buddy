@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   User, Hash, ArrowRight, Activity, Clock4, CircleX, HelpCircle, 
-  Calendar, Video, ExternalLink, CheckCircle2 
+  Calendar, Video , Link, ExternalLink, CheckCircle2 
 } from 'lucide-react';
 import { format, isWithinInterval, isPast, isFuture, parseISO } from 'date-fns'; // Optional: handy for date logic, or use standard JS Date
 
@@ -58,7 +58,7 @@ const CardItem = ({
           headerClasses: 'bg-green-50 text-green-600',
           titleHoverClass: 'group-hover:text-green-600',
           Icon: variant === 'session' ? Video : Activity,
-          iconSpin: currentStatus === 'Live' // Pulse effect for Live sessions
+          // iconSpin: currentStatus === 'Live' // Pulse effect for Live sessions
         };
 
       // -- PROCESSING / UPCOMING --
@@ -116,7 +116,7 @@ const CardItem = ({
     <div className={`group w-[270px] bg-white rounded-3xl ${cardBorder} shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden flex flex-col h-full`}>
       
       {/* Header Section */}
-      <div className={`${headerClasses} p-5 relative h-28 flex justify-between items-start transition-colors duration-300`}>
+      <div className={`${headerClasses} p-5 relative h-20 flex justify-between items-start transition-colors duration-300`}>
         <div className="bg-white/80 backdrop-blur-sm p-2.5 rounded-2xl shadow-sm inline-flex items-center justify-center">
           <Icon size={24} className={iconSpin ? 'animate-pulse' : ''} />
         </div>
@@ -135,16 +135,18 @@ const CardItem = ({
           </h3>
           
           {/* Subtitle: Description (Course) OR Time (Session) */}
-          <p className="text-txt-dark text-sm font-outfit font-medium h-6 leading-relaxed line-clamp-1 flex items-center gap-1">
-            {variant === 'session' ? (
+          {variant === 'session' ? (
+            <p className="text-txt-dark text-sm font-outfit font-medium h-6 leading-relaxed line-clamp-1 flex items-center gap-1">
               <>
                 <Clock4 size={16} className="text-txt-placeholder" />
                 {renderSessionTime()}
               </>
+            </p>
             ) : (
-              description
-            )}
-          </p>
+              <p className="text-txt-placeholder text-sm font-outfit font-medium h-6 leading-relaxed line-clamp-1 flex items-center gap-1">
+                {description}
+              </p>
+          )}
         </div>
 
         {/* Metadata Row */}
@@ -165,7 +167,7 @@ const CardItem = ({
               </>
             ) : (
               /* Visual indicator if link exists */
-              link && <Video size={16} className={displayStatus === 'Live' ? "text-green-500" : "text-gray-300"} />
+              link && <Link size={16} className={displayStatus === 'Live' ? "text-green-500" : "text-gray-300"} />
             )}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { List } from 'lucide-react'
 
 import Tray from '../components/Tray.jsx';
 import Button from '../components/Button.jsx'; // Still needed if you use it elsewhere, though Pagination imports it internally
@@ -128,7 +129,7 @@ const LinksCenter = () => {
         </div>
       </div>
 
-      <div className='col-start-4 col-span-6 mb-6'>
+      <div className='col-start-4 col-span-6'>
         <SearchBar
           onSearch={setSearchQuery}
           onSortChange={setSortBy}
@@ -144,7 +145,19 @@ const LinksCenter = () => {
         </div>
       </div>
 
-      <Tray pos='col-start-2' size='col-span-10' variant='grid'>
+      <Tray 
+        pos='col-start-2' 
+        size='col-span-10' 
+        variant='grid'
+        title={
+          <div className="flex items-center justify-start gap-2 w-full border-b border-gray-100 pb-4 mb-2">
+            <List className="text-primary-accent" size={24} />
+            <h2 className="text-2xl font-bold font-outfit text-primary-accent">
+              Search Results
+            </h2>
+          </div>
+        }
+      >
         {isLoading ? (
           <div className="col-span-full text-center py-10">Loading...</div>
         ) : currentItems.length > 0 ? (
