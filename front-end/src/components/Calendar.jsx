@@ -3,7 +3,7 @@ import {
   format, startOfWeek, addDays, isSameDay, parseISO, 
   getHours, getMinutes, differenceInMinutes 
 } from 'date-fns';
-import { ChevronLeft, ChevronRight, Clock, Loader } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Loader, CalendarIcon } from 'lucide-react';
 import Button from './Button'; 
 
 const Calendar = ({ 
@@ -37,7 +37,7 @@ const Calendar = ({
     let earliestSlotIndex = TOTAL_SLOTS; 
 
     sessions.forEach(session => {
-        if (!session.start_time) return;
+        if (!session.start_time || !session.end_time) return;
 
         const s = parseISO(session.start_time);
         const isVisible = weekDays.some(day => isSameDay(day, s));
@@ -107,8 +107,9 @@ const Calendar = ({
       {/* --- Header Controls --- */}
       <div className="flex justify-between items-center mb-4 shrink-0">
         <div>
-          <h2 className="text-2xl font-bold font-outfit text-primary flex items-center gap-2">
-            Schedule
+          <h2 className="text-2xl font-bold font-outfit text-primary-accent flex items-center gap-2">
+            <CalendarIcon size={24}></CalendarIcon>
+            Calendar Widget
             {isLoading && <Loader className="w-5 h-5 animate-spin text-txt-placeholder" />}
           </h2>
           <p className="text-txt-placeholder text-sm">
@@ -206,6 +207,7 @@ const Calendar = ({
 
           {/* --- C. EVENTS (Overlay) --- */}
           {!isLoading && filteredSessions.map((session) => {
+            if (!session.start_time || !session.end_time) return null;
             const style = getGridPosition(session.start_time, session.end_time, parseISO(session.start_time));
             if (!style) return null;
 
