@@ -1,0 +1,321 @@
+-- =======================================================
+-- 1. DATABASE SETUP & SCHEMA
+-- =======================================================
+DROP DATABASE IF EXISTS `cnpm`;
+CREATE DATABASE `cnpm`;
+USE `cnpm`;
+
+-- 1.1 Users Table
+CREATE TABLE `Users` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `username` VARCHAR(50) UNIQUE,
+    `password` VARCHAR(255), 
+    `role` ENUM('Student', 'Tutor', 'Admin') DEFAULT 'Student',     
+    `full_name` VARCHAR(100),
+    `academic_status` ENUM('Student', 'Bachelor', 'Master', 'PhD', 'Professor', 'Assoc. Prof') DEFAULT 'Student',
+    `bio` TEXT              
+);
+
+-- 1.2 Courses Table
+CREATE TABLE `Courses` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `tutor_id` INT,         
+    `course_code` VARCHAR(20) UNIQUE, -- Changed to VARCHAR based on data (e.g. 'CO2039')
+    `title` VARCHAR(255),
+    `description` TEXT,
+    `status` ENUM('Processing', 'Ongoing', 'Ended') DEFAULT 'Processing',
+    FOREIGN KEY (`tutor_id`) REFERENCES `Users`(`id`) ON DELETE CASCADE
+);
+
+-- 1.3 Enrollments Table
+CREATE TABLE `Enrollments` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `student_id` INT,
+    `course_id` INT,
+    FOREIGN KEY (`student_id`) REFERENCES `Users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`course_id`) REFERENCES `Courses`(`id`) ON DELETE CASCADE,
+    UNIQUE KEY `unique_enrollment` (`student_id`, `course_id`)
+);
+
+-- 1.4 Sessions Table
+CREATE TABLE `Sessions` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `course_id` INT,
+    `tutor_id` INT,
+    `start_time` DATETIME,
+    `end_time` DATETIME,
+    `title` VARCHAR(255),
+    `link` VARCHAR(255),
+    `session_type` ENUM('Meeting', 'Quiz', 'Form', 'Document') DEFAULT 'Meeting',
+    `assign_mode` ENUM('Manual', 'Auto_All') DEFAULT 'Manual',
+    FOREIGN KEY (`course_id`) REFERENCES `Courses` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`tutor_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE
+);
+
+-- 1.5 Bookings Table
+CREATE TABLE `Bookings` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `student_id` INT NOT NULL,
+    `session_id` INT NOT NULL,
+    `booking_time` DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`student_id`) REFERENCES `Users`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`session_id`) REFERENCES `Sessions`(`id`) ON DELETE CASCADE,
+    CONSTRAINT `unique_student_booking` UNIQUE (`student_id`, `session_id`)
+);
+
+-- =======================================================
+-- 2. TRIGGERS (SAFETY CHECKS)
+-- =======================================================
+DELIMITER $$
+
+-- Check End Time > Start Time
+CREATE TRIGGER `check_session_time_insert` BEFORE INSERT ON `Sessions`
+FOR EACH ROW BEGIN
+    IF NEW.end_time <= NEW.start_time THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'End time must be after Start time'; END IF;
+END $$
+
+-- Check Tutor Availability (Overlap)
+CREATE TRIGGER `check_tutor_overlap_insert` BEFORE INSERT ON `Sessions`
+FOR EACH ROW BEGIN
+    IF EXISTS (SELECT 1 FROM `Sessions` WHERE `tutor_id` = NEW.tutor_id AND (NEW.start_time < `end_time` AND NEW.end_time > `start_time`)) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Tutor has a conflicting session';
+    END IF;
+END $$
+
+-- Check Student Enrollment before Booking
+CREATE TRIGGER `check_enrollment_before_booking` BEFORE INSERT ON `Bookings`
+FOR EACH ROW BEGIN
+    DECLARE v_course_id INT;
+    SELECT `course_id` INTO v_course_id FROM `Sessions` WHERE `id` = NEW.session_id;
+    IF NOT EXISTS (SELECT 1 FROM `Enrollments` WHERE `student_id` = NEW.student_id AND `course_id` = v_course_id) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Student is not enrolled in this course';
+    END IF;
+END $$
+
+DELIMITER ;
+
+-- =======================================================
+-- 3. STORED PROCEDURES (OPTIMIZED FOR BACKEND)
+-- =======================================================
+DELIMITER $$
+
+-- 3.1 Auth
+DROP PROCEDURE IF EXISTS `sp_register_user` $$
+CREATE PROCEDURE `sp_register_user`(IN p_username VARCHAR(50), IN p_password VARCHAR(255), IN p_role VARCHAR(20), IN p_full_name VARCHAR(100), IN p_academic_status VARCHAR(20), IN p_bio TEXT)
+BEGIN
+    IF EXISTS (SELECT 1 FROM `Users` WHERE `username` = p_username) THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Username taken'; END IF;
+    INSERT INTO `Users` (`username`, `password`, `role`, `full_name`, `academic_status`, `bio`) VALUES (p_username, p_password, p_role, p_full_name, p_academic_status, p_bio);
+    SELECT LAST_INSERT_ID() as new_id;
+END $$
+
+DROP PROCEDURE IF EXISTS `sp_login_user` $$
+CREATE PROCEDURE `sp_login_user`(IN p_username VARCHAR(50), IN p_password VARCHAR(255))
+BEGIN
+    SELECT `id`, `username`, `role`, `full_name`, `academic_status`, `bio` FROM `Users` WHERE `username` = p_username AND `password` = p_password;
+END $$
+
+-- 3.2 Profile & Dashboard
+DROP PROCEDURE IF EXISTS `sp_get_user_profile` $$
+CREATE PROCEDURE `sp_get_user_profile`(IN p_user_id INT, IN p_role VARCHAR(20), IN p_target_id INT)
+BEGIN
+    DECLARE v_c_count INT DEFAULT 0;
+    DECLARE v_s_count INT DEFAULT 0;
+    DECLARE v_target_role VARCHAR(20);
+    SELECT `role` INTO v_target_role FROM `Users` WHERE `id` = p_target_id;
+    
+    IF v_target_role = 'Tutor' THEN
+        SELECT COUNT(*) INTO v_c_count FROM `Courses` WHERE `tutor_id` = p_target_id;
+        SELECT COUNT(*) INTO v_s_count FROM `Sessions` WHERE `tutor_id` = p_target_id;
+    ELSE
+        SELECT COUNT(*) INTO v_c_count FROM `Enrollments` WHERE `student_id` = p_target_id;
+        SELECT COUNT(*) INTO v_s_count FROM `Bookings` WHERE `student_id` = p_target_id;
+    END IF;
+
+    SELECT id, username, role, full_name, academic_status, bio, v_c_count AS stat_courses, v_s_count AS stat_sessions FROM `Users` WHERE id = p_target_id;
+END $$
+
+DROP PROCEDURE IF EXISTS `sp_get_all_user_sessions` $$
+CREATE PROCEDURE `sp_get_all_user_sessions`(
+    IN p_user_id INT, 
+    IN p_role VARCHAR(20)
+)
+BEGIN
+    -- =============================================
+    -- SCENARIO 1: STUDENT
+    -- =============================================
+    IF p_role = 'Student' THEN
+        SELECT 
+            s.id, 
+            s.course_id,               -- Added: Required by Calendar.jsx
+            s.title, 
+            -- Force Date to String format 'YYYY-MM-DD HH:MM:SS' to match your frontend .replace() logic
+            DATE_FORMAT(s.start_time, '%Y-%m-%d %H:%i:%s') as start_time, 
+            DATE_FORMAT(s.end_time, '%Y-%m-%d %H:%i:%s') as end_time, 
+            s.link, 
+            s.session_type, 
+            c.course_code, 
+            u.full_name AS member_name
+        FROM `Bookings` b
+        JOIN `Sessions` s ON b.session_id = s.id
+        JOIN `Courses` c ON s.course_id = c.id
+        JOIN `Users` u ON c.tutor_id = u.id
+        WHERE b.student_id = p_user_id
+        ORDER BY s.start_time ASC;
+
+    -- =============================================
+    -- SCENARIO 2: TUTOR
+    -- =============================================
+    ELSE
+        SELECT 
+            s.id, 
+            s.course_id,               -- Added
+            s.title, 
+            DATE_FORMAT(s.start_time, '%Y-%m-%d %H:%i:%s') as start_time, 
+            DATE_FORMAT(s.end_time, '%Y-%m-%d %H:%i:%s') as end_time, 
+            s.link, 
+            s.session_type, 
+            c.course_code, 
+            u.full_name AS member_name
+        FROM `Sessions` s
+        JOIN `Courses` c ON s.course_id = c.id
+        JOIN `Users` u ON c.tutor_id = u.id
+        WHERE s.tutor_id = p_user_id
+        ORDER BY s.start_time ASC;
+    END IF;
+END $$
+
+-- 3.3 Courses & Discovery
+DROP PROCEDURE IF EXISTS `sp_get_courses` $$
+CREATE PROCEDURE `sp_get_courses`(IN p_user_id INT, IN p_role VARCHAR(20))
+BEGIN
+    IF p_role = 'Student' THEN
+        SELECT c.id, c.course_code, c.title, c.description, c.status, u.full_name AS member_name
+        FROM `Enrollments` e
+        JOIN `Courses` c ON e.course_id = c.id
+        JOIN `Users` u ON c.tutor_id = u.id
+        WHERE e.student_id = p_user_id;
+    ELSE
+        SELECT c.id, c.course_code, c.title, c.description, c.status, u.full_name AS member_name
+        FROM `Courses` c
+        JOIN `Users` u ON c.tutor_id = u.id
+        WHERE c.tutor_id = p_user_id;
+    END IF;
+END $$
+
+-- 1. Get Courses Student is NOT enrolled in (For Discovery)
+DROP PROCEDURE IF EXISTS `sp_get_available_courses` $$
+CREATE PROCEDURE `sp_get_available_courses`(
+    IN p_user_id INT, 
+    IN p_role VARCHAR(20)
+)
+BEGIN
+    -- Only relevant if user is a Student
+    IF p_role = 'Student' THEN
+        SELECT 
+            c.id, 
+            c.course_code, 
+            c.title, 
+            c.description, 
+            c.status, 
+            u.full_name AS member_name
+        FROM `Courses` c
+        JOIN `Users` u ON c.tutor_id = u.id
+        WHERE c.id NOT IN (
+            SELECT course_id FROM `Enrollments` WHERE student_id = p_user_id
+        )
+        AND c.status <> 'Ended'; -- Optional: Hide ended courses
+    ELSE
+        -- If Tutor/Admin, maybe show all courses? Or empty.
+        -- Let's return all courses for now.
+        SELECT 
+            c.id, c.course_code, c.title, c.description, c.status, u.full_name AS member_name
+        FROM `Courses` c
+        JOIN `Users` u ON c.tutor_id = u.id;
+    END IF;
+END $$
+
+-- 2. Get All Tutors (For CardUser display)
+DROP PROCEDURE IF EXISTS `sp_get_all_tutors` $$
+CREATE PROCEDURE `sp_get_all_tutors`()
+BEGIN
+    SELECT 
+        id, 
+        username, 
+        full_name, 
+        academic_status, 
+        bio 
+    FROM `Users` 
+    WHERE `role` = 'Tutor';
+END $$
+
+-- 3.4 Sessions (Specific Course)
+DROP PROCEDURE IF EXISTS `sp_get_sessions_by_course` $$
+CREATE PROCEDURE `sp_get_sessions_by_course`(IN p_user_id INT, IN p_role VARCHAR(20), IN p_course_code VARCHAR(20))
+BEGIN
+    DECLARE v_cid INT;
+    SELECT id INTO v_cid FROM Courses WHERE course_code = p_course_code;
+    
+    -- For this specific page, we return ALL sessions if student is enrolled, 
+    -- but we can filter by booking if required. 
+    -- Current logic: Show all available sessions in the course (MyLinks page)
+    SELECT s.id, s.course_id, s.title, s.start_time, s.end_time, s.link, s.session_type, u.full_name AS member_name
+    FROM `Sessions` s
+    JOIN `Users` u ON s.tutor_id = u.id
+    WHERE s.course_id = v_cid
+    ORDER BY s.start_time ASC;
+END $$
+
+DELIMITER ;
+
+-- =======================================================
+-- 4. DATA SEEDING
+-- =======================================================
+
+-- Users
+INSERT INTO `Users` (`id`, `username`, `password`, `role`, `full_name`, `academic_status`, `bio`) VALUES
+(1, 'tutor_khoa', '1', 'Tutor', 'TS. Nguyễn Anh Khoa', 'PhD', 'Introduction to Programming & Data Structures'),
+(2, 'tutor_hai', '1', 'Tutor', 'ThS. Phạm Thanh Hải', 'Master', 'Operating Systems'),
+(3, 'tutor_quan', '1', 'Tutor', 'PGS.TS Trần Minh Quân', 'Assoc. Prof', 'Artificial Intelligence Expert'),
+(4, 'tutor_lan', '1', 'Tutor', 'ThS. Lê Thị Lan', 'Master', 'Database & Web Development'),
+(5, 'sv_nam', '1', 'Student', 'Trần Văn Nam', 'Student', NULL),
+(6, 'sv_hung', '1', 'Student', 'Lê Quốc Hưng', 'Student', NULL);
+
+-- 4.2 Courses
+-- IDs here must match the course_id in your mockup
+INSERT INTO `Courses` (`id`, `tutor_id`, `course_code`, `title`, `description`, `status`) VALUES
+(1, 1, 'CO1005', 'Nhập môn Lập trình', 'Introduction to Programming', 'Ongoing'),
+(2, 1, 'CO2003', 'Cấu trúc Dữ liệu & Giải thuật', 'Data Structures and Algorithms', 'Ongoing'),
+(4, 3, 'CO3001', 'Trí tuệ Nhân tạo', 'Artificial Intelligence', 'Ongoing'),
+(6, 4, 'CO2013', 'Hệ Cơ sở dữ liệu', 'Database Systems', 'Ongoing'),
+(7, 4, 'CO3049', 'Lập trình Web', 'Web Programming', 'Ongoing');
+
+-- 4.3 Enrollments
+-- Enrolling Student "sv_hung" (id=6) into these courses so they appear in dashboard
+INSERT INTO `Enrollments` (`student_id`, `course_id`) VALUES
+(6, 1), (6, 2), (6, 4), (6, 6), (6, 7);
+
+-- 4.4 Sessions (Your Mockup Data)
+-- Explicitly setting IDs to match your JSON
+INSERT INTO `Sessions` (`id`, `course_id`, `tutor_id`, `start_time`, `end_time`, `link`, `title`, `session_type`) VALUES
+-- 1. Nhập môn Lập trình
+(1, 1, 1, NULL, NULL, 'meet.google.com/co1005-01', 'CO1005 - Nhập môn Lập trình', 'Meeting'), 
+(2, 1, 1, '2025-12-03 07:00:00', '2025-12-03 10:00:00', 'meet.google.com/co1005-02', 'CO1005 - Nhập môn Lập trình', 'Meeting'),
+
+-- 2. Cấu trúc dữ liệu
+(4, 2, 1, '2025-12-02 09:00:00', '2025-12-02 11:30:00', 'meet.google.com/dsa-01', 'CO2003 - Cấu trúc Dữ liệu (Midterm Quiz)', 'Quiz'),
+(5, 2, 1, '2025-12-04 09:00:00', '2025-12-04 11:30:00', 'meet.google.com/dsa-02', 'CO2003 - Cấu trúc Dữ liệu & Giải thuật', 'Meeting'),
+
+-- 6. Cơ sở dữ liệu
+(16, 6, 4, '2025-12-02 14:00:00', '2025-12-02 17:00:00', 'teams.microsoft.com/db-01', 'CO2013 - Hệ Cơ sở dữ liệu (Reading Material)', 'Document'),
+
+-- 7. Lập trình Web
+(19, 7, 4, '2025-12-07 08:00:00', '2025-12-07 11:00:00', 'teams.microsoft.com/web-01', 'CO3049 - Lập trình Web (Course Survey)', 'Form'),
+
+-- 4. Trí tuệ nhân tạo
+(10, 4, 3, '2025-12-10 13:00:00', '2025-12-20 16:00:00', 'zoom.us/ai-01', 'CO3001 - Trí tuệ Nhân tạo (AI)', 'Meeting');
+
+-- 4.5 Bookings
+-- Automatically "Book" these sessions for student sv_hung (id=6)
+-- so the SQL query returns them immediately.
+INSERT INTO `Bookings` (`student_id`, `session_id`) VALUES
+(6, 2), (6, 4), (6, 5), (6, 16), (6, 19), (6, 10);

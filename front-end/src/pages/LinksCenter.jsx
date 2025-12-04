@@ -1,82 +1,64 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { List } from 'lucide-react'
+import { useNavigate } from 'react-router-dom';
+import { List } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.jsx';
 
 import Tray from '../components/Tray.jsx';
 import SearchBar from '../components/SearchBar.jsx';
-import CardItem from '../components/CardItem.jsx';
+import CardCourse from '../components/CardCourse.jsx';
 import Pagination from '../components/Pagination.jsx';
 import Loading from '../components/Loading.jsx';
 
 const ITEMS_PER_PAGE = 12;
 
-// Custom Rank for Status Sorting
-// Higher number = Higher priority in Descending order
-const STATUS_RANK = {
-  'Ongoing': 3,
-  'Processing': 2,
-  'Ended': 1
-};
-
 const LinksCenter = () => {
-  // --- 1. State Management ---
   const [links, setLinks] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Initialize with Defaults
-  const [searchQuery, setSearchQuery] = useState('status:ongoing'); 
-  const [sortBy, setSortBy] = useState('Tutor name'); 
-  const [sortDirection, setSortDirection] = useState('asc'); 
+  const { token } = useAuth();
+  const navigate = useNavigate();
 
+  // Search & Sort State
+  const [searchQuery, setSearchQuery] = useState('status:ongoing'); 
+  const [sortBy, setSortBy] = useState('Member name'); 
+  const [sortDirection, setSortDirection] = useState('asc'); 
   const [currentPage, setCurrentPage] = useState(1);
 
-  // --- 2. Data Fetching ---
   useEffect(() => {
-    const fetchLinks = async () => {
+    const fetchCourses = async () => {
       try {
         setIsLoading(true);
-        // MOCK DATA (Updated to include 'Processing' for testing sort)
-        const mockData = Array.from({ length: 100 }).map((_, idx) => {
-          // Generate a random status for demonstration
-          let status = 'Ongoing';
-          if (idx % 3 === 0) status = 'Ended';
-          else if (idx % 3 === 1) status = 'Processing';
-
-          return {
-            id: idx,
-            courseId: `CO${2000 + idx}`,
-            tutorName: idx % 2 === 0 ? 'TS. Nguyễn Anh Khoa' : 'Dr. Smith',
-            title: idx % 3 === 0 ? 'Data Structures' : 'Linear Algebra',
-            description: `Session description for item ${idx + 1}`,
-            status: status
-          };
+        const response = await fetch('http://localhost:5000/api/courses', {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
 
-        setTimeout(() => {
-          setLinks(mockData);
-          setIsLoading(false);
-        }, 500);
+        if (response.ok) {
+          const data = await response.json();
+          setLinks(data);
+        }
       } catch (error) {
-        console.error("Failed to fetch links:", error);
+        console.error("Failed to fetch courses:", error);
+      } finally {
         setIsLoading(false);
       }
     };
-    fetchLinks();
-  }, []);
 
-  // --- 3. Filtering & Sorting Logic ---
+    if (token) fetchCourses();
+  }, [token]);
+
+  // --- Filtering & Sorting (Same logic as before, just ensuring keys match DB) ---
   const processedLinks = useMemo(() => {
     let result = [...links];
 
-    // Filter (Unmodified from original)
+    // Filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
+      // NOTE: Backend returns 'course_code', 'member_name' (aliased), 'title', 'status'
       const attributeMap = [
-        { prefix: 'status:', key: 'status' },
-        { prefix: 'course:', key: 'courseId' },
-        { prefix: 'courseid:', key: 'courseId' },
-        { prefix: 'tutor:', key: 'tutorName' },
-        { prefix: 'tutorname:', key: 'tutorName' },
         { prefix: 'title:', key: 'title' },
+        { prefix: 'name:', key: 'title' },
+        { prefix: 'status:', key: 'status' },
+        { prefix: 'course:', key: 'course_code' },
+        { prefix: 'member:', key: 'member_name' },
       ];
 
       const matchedFilter = attributeMap.find(attr => query.startsWith(attr.prefix));
@@ -84,32 +66,28 @@ const LinksCenter = () => {
       if (matchedFilter) {
         const valueToFind = query.replace(matchedFilter.prefix, '').trim();
         if (valueToFind) {
-          result = result.filter(item => {
-            const itemValue = item[matchedFilter.key]?.toString().toLowerCase();
-            return itemValue?.includes(valueToFind);
-          });
+          result = result.filter(item => 
+            item[matchedFilter.key]?.toString().toLowerCase().includes(valueToFind)
+          );
         }
       } else {
         result = result.filter(item => 
-          item.title.toLowerCase().includes(query) ||
-          item.tutorName.toLowerCase().includes(query) ||
-          item.courseId.toLowerCase().includes(query)
+          item.title?.toLowerCase().includes(query) ||
+          item.member_name?.toLowerCase().includes(query) ||
+          item.course_code?.toLowerCase().includes(query)
         );
       }
     }
 
     // Sort
     result.sort((a, b) => {
-      let valA, valB;
+      let valA = '', valB = '';
+      // Safe access
       switch (sortBy) {
-        case 'Tutor name': valA = a.tutorName; valB = b.tutorName; break;
-        case 'Title': valA = a.title; valB = b.title; break;
-        case 'Status': 
-          // Use the Custom Rank Lookups
-          valA = STATUS_RANK[a.status] || 0; 
-          valB = STATUS_RANK[b.status] || 0; 
-          break;
-        default: valA = a.tutorName; valB = b.tutorName;
+        case 'Member name': valA = a.member_name || ''; valB = b.member_name || ''; break;
+        case 'Title': valA = a.title || ''; valB = b.title || ''; break;
+        case 'Status': valA = a.status || ''; valB = b.status || ''; break;
+        default: valA = a.member_name || ''; valB = b.member_name || '';
       }
       
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
@@ -120,32 +98,21 @@ const LinksCenter = () => {
     return result;
   }, [links, searchQuery, sortBy, sortDirection]);
 
-  // --- Pagination Logic ---
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, sortBy, sortDirection]);
-
+  // Pagination
   const totalPages = Math.ceil(processedLinks.length / ITEMS_PER_PAGE);
   const currentItems = processedLinks.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPage(newPage);
-    }
-  };
-
   return (
     <>
-      {/* Header */}
       <div className='col-start-2 col-span-10 flex flex-col min-h-[10vh] p-8 pb-0 items-center justify-center bg-transparent '>
         <div className='font-outfit text-primary-accent text-6xl font-extrabold'>
           Links Center
         </div>
         <div className='text-secondary-accent font-medium font-roboto'>
-          This is where all of your registered sessions gather
+          Access your courses and sessions
         </div>
       </div>
 
@@ -154,14 +121,13 @@ const LinksCenter = () => {
           onSearch={setSearchQuery}
           onSortChange={setSortBy}
           onDirectionToggle={(dir) => setSortDirection(dir)}
-          sortOptions={['Tutor name', 'Title', 'Status']}
-          
+          sortOptions={['Member Name', 'Title', 'Status']}
           defaultSearchValue="status:ongoing"
-          defaultSort="Tutor name"
+          defaultSort="Member Name"
           defaultDirection="asc"
         />
-        <div className="text-xs text-gray-400 text-center mt-2">
-          Try: "status:ongoing", "tutor:P-chan", or "course:CO2003"
+        <div className="text-sm font-medium font-roboto text-txt-accent text-center mt-2">
+          Try: "type:quiz", "title:midterm", or "member:Khoa"
         </div>
       </div>
 
@@ -184,19 +150,20 @@ const LinksCenter = () => {
           </div>
         ) : currentItems.length > 0 ? (
           currentItems.map((link) => (
-            <CardItem
-              key={link.id}
-              itemId={link.courseId}
-              tutorName={link.tutorName}
+            <CardCourse
+              key={link.itemId} // itemId from DB alias
+              itemId={link.course_code}
+              memberName={link.member_name}
               title={link.title}
               description={link.description}
               status={link.status}
-              onViewDetails={() => console.log(`Details: ${link.id}`)}
+              // --- ACTION: Navigate to MyLinks ---
+              onAction={() => navigate(`/mysessions/${link.course_code}`)}
             />
           ))
         ) : (
-          <div className="col-span-full text-center py-10">
-            No results found for "{searchQuery}"
+          <div className="col-span-full text-center font-medium font-roboto text-txt-dark py-10">
+            No results found.
           </div>
         )}
       </Tray>
