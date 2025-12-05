@@ -13,6 +13,7 @@ router.get('/profile', verifyToken, appController.getProfile);
 
 router.get('/courses', verifyToken, appController.getCourses);
 router.get('/courses/available', verifyToken, appController.getAvailableCourses);
+router.post('/courses/create', verifyToken, appController.createCourse);
 router.post('/enroll', verifyToken, appController.enroll);
 
 router.get('/sessions/all', verifyToken, appController.getAllSessions);

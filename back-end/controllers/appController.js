@@ -123,3 +123,21 @@ exports.getAllTutors = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+// 9. Create Course (Tutor Only)
+exports.createCourse = async (req, res) => {
+  const { courseCode, title, description } = req.body;
+  
+  try {
+    // Calls: sp_create_course(p_user_id, p_role, p_course_code, p_title, p_description)
+    await db.query(
+      'CALL sp_create_course(?, ?, ?, ?, ?)', 
+      [req.user.id, req.user.role, courseCode, title, description]
+    );
+    
+    res.json({ message: 'Course created successfully' });
+  } catch (error) {
+    // Handle SQL errors (e.g., "Course code already exists")
+    res.status(400).json({ error: error.message });
+  }
+};

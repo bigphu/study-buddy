@@ -7,15 +7,16 @@ import Footer from '../src/components/Footer.jsx';
 import Background from '../src/components/Background.jsx';
 import Loading from '../src/components/Loading.jsx';
 
-import Home from '../src/pages/Home.jsx';
-import Login from '../src/pages/Login.jsx';
-import Register from '../src/pages/Register.jsx';
-import Dashboard from '../src/pages/Dashboard.jsx';
-import LinksCenter from '../src/pages/LinksCenter.jsx';
-import Discovery from '../src/pages/Discovery.jsx';
-import Profile from '../src/pages/Profile.jsx';
+import Home from './pages/Home.jsx';
+import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
+import Dashboard from './pages/Dashboard.jsx';
+import LinksCenter from './pages/LinksCenter.jsx';
+import Discovery from './pages/Discovery.jsx';
+import Profile from './pages/Profile.jsx';
 import MySessions from './pages/MySessions.jsx'; 
-import Page404 from '../src/pages/Page404.jsx';
+import Page404 from './pages/Page404.jsx';
+import CreateCourse from './pages/CreateCourse.jsx'
 import CreateSession from './pages/CreateSession.jsx';
 
 const ProtectedRoute = ({ children }) => {
@@ -45,6 +46,7 @@ const MainLayout = () => {
           <Route path='/dashboard' element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           
           <Route path='/linkscenter' element={<ProtectedRoute><LinksCenter /></ProtectedRoute>} />
+          <Route path="/create-course" element={<ProtectedRoute><CreateCourse /></ProtectedRoute>} />
           <Route path='/mysessions/:courseCode' element={<ProtectedRoute><MySessions /></ProtectedRoute>} /> 
           <Route path="/create-session/:courseCode" element={<ProtectedRoute><CreateSession /></ProtectedRoute>} />
 

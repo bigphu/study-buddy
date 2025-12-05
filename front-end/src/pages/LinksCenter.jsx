@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List } from 'lucide-react';
+import { List, Plus } from 'lucide-react'; // Added Plus icon
 import { useAuth } from '../context/AuthContext.jsx';
 
 import Tray from '../components/Tray.jsx';
@@ -8,13 +8,16 @@ import SearchBar from '../components/SearchBar.jsx';
 import CardCourse from '../components/CardCourse.jsx';
 import Pagination from '../components/Pagination.jsx';
 import Loading from '../components/Loading.jsx';
+import Button from '../components/Button.jsx'; // Ensure Button is imported
 
 const ITEMS_PER_PAGE = 12;
 
 const LinksCenter = () => {
   const [links, setLinks] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
-  const { token } = useAuth();
+  
+  // 1. Destructure 'user' from useAuth to check role
+  const { token, user } = useAuth(); 
   const navigate = useNavigate();
 
   // Search & Sort State
@@ -45,14 +48,13 @@ const LinksCenter = () => {
     if (token) fetchCourses();
   }, [token]);
 
-  // --- Filtering & Sorting (Same logic as before, just ensuring keys match DB) ---
+  // --- Filtering & Sorting (Same as before) ---
   const processedLinks = useMemo(() => {
     let result = [...links];
 
     // Filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase().trim();
-      // NOTE: Backend returns 'course_code', 'member_name' (aliased), 'title', 'status'
       const attributeMap = [
         { prefix: 'title:', key: 'title' },
         { prefix: 'name:', key: 'title' },
@@ -83,14 +85,12 @@ const LinksCenter = () => {
     // Sort
     result.sort((a, b) => {
       let valA = '', valB = '';
-      // Safe access
       switch (sortBy) {
         case 'Member name': valA = a.member_name || ''; valB = b.member_name || ''; break;
         case 'Title': valA = a.title || ''; valB = b.title || ''; break;
         case 'Status': valA = a.status || ''; valB = b.status || ''; break;
         default: valA = a.member_name || ''; valB = b.member_name || '';
       }
-      
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -105,6 +105,11 @@ const LinksCenter = () => {
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+  
+  const handlePageChange = (page) => setCurrentPage(page);
+
+  // Check if User is Tutor
+  const isTutor = user?.role === 'Tutor';
 
   return (
     <>
@@ -131,6 +136,20 @@ const LinksCenter = () => {
           Try: "title:web", "status:ongoing", "course:CO2003", "member:Khoa" or "show-all"
         </div>
       </div>
+      
+      {/* 2. Create Course Button Area */}
+      <div className='col-start-2 col-span-10 flex justify-end items-end'>
+        {isTutor && (
+          <Button 
+            variant='primary' 
+            onClick={() => navigate('/create-course')} 
+            className="flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Create Course
+          </Button>
+        )}
+      </div>
 
       <Tray 
         pos='col-start-2' 
@@ -152,13 +171,12 @@ const LinksCenter = () => {
         ) : currentItems.length > 0 ? (
           currentItems.map((link) => (
             <CardCourse
-              key={link.itemId} // itemId from DB alias
+              key={link.id || link.course_code} // Ensure unique key
               itemId={link.course_code}
               memberName={link.member_name}
               title={link.title}
               description={link.description}
               status={link.status}
-              // --- ACTION: Navigate to MyLinks ---
               onAction={() => navigate(`/mysessions/${link.course_code}`)}
             />
           ))
@@ -169,7 +187,6 @@ const LinksCenter = () => {
         )}
       </Tray>
 
-      {/* Pagination Controls */}
       {processedLinks.length > ITEMS_PER_PAGE ? (
         <Pagination 
           currentPage={currentPage}
@@ -177,8 +194,7 @@ const LinksCenter = () => {
           onPageChange={handlePageChange}
         />
       ) : (
-        <div className='col-start-2 col-span-10 p-8'> 
-        </div>
+        <div className='col-start-2 col-span-10 p-8'></div>
       )}
     </>
   );
