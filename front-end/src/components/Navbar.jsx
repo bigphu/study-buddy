@@ -107,7 +107,7 @@ const Navbar = () => {
                 </div>
                 
                 {/* Avatar Circle */}
-                <div className='w-9 h-9 bg-gradient-to-tr from-secondary-accent to-white/20 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-white/20'>
+                <div className='w-9 h-9 bg-linear-to-tr from-secondary-accent to-white/20 rounded-full flex items-center justify-center text-white font-bold shadow-sm border border-white/20'>
                   {user.fullName ? user.fullName.charAt(0).toUpperCase() : <User size={16}/>}
                 </div>
               </div>
@@ -124,13 +124,10 @@ const Navbar = () => {
           ) : (
             // --- GUEST STATE (Login/Register) ---
             !isOnlyLogo && (
-              <div className='flex gap-4'>
-                 <NavLink to="/login" className="text-txt-light font-bold hover:text-secondary-accent transition-colors">
-                   Sign In
-                 </NavLink>
-                 <NavLink to="/register" className="px-4 py-2 bg-secondary-accent text-primary font-bold rounded-full hover:bg-white transition-colors">
-                   Get Started
-                 </NavLink>
+              <div className='flex gap-4 items-center'>
+                <NavLink to="/login" className="text-txt-light font-bold hover:text-secondary-accent transition-colors">
+                  Log In
+                </NavLink>
               </div>
             )
           )}

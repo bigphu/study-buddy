@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Search, ChevronDown, ArrowUpAZ, ArrowDownAZ } from 'lucide-react';
-
+import { Search, ArrowUpAZ, ArrowDownAZ, ListFilterIcon } from 'lucide-react';
+import InputForm from './InputForm.jsx';
+import InputSelect from './InputSelect.jsx';
 import Button from './Button.jsx';
 
 const SearchBar = ({
@@ -9,35 +10,34 @@ const SearchBar = ({
   onDirectionToggle,
   sortOptions = ['Tutor name', 'Title', 'Status'],
   className = '',
-  // New props for defaults
   defaultSearchValue = '',
   defaultSort = 'Tutor name',
   defaultDirection = 'asc'
 }) => {
-  // Initialize state with the provided defaults
+  // Initialize state
   const [searchValue, setSearchValue] = useState(defaultSearchValue);
   const [selectedSort, setSelectedSort] = useState(defaultSort);
   const [isAscending, setIsAscending] = useState(defaultDirection === 'asc');
-  
-  const [isSortOpen, setIsSortOpen] = useState(false);
 
   // Handlers
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchValue(val);
+    
     if (onSearch) {
       // If value is empty, immediately trigger the default search logic
       if (val.trim() === '') {
-        // onSearch(defaultSearchValue);
+        onSearch(defaultSearchValue);
       } else {
         onSearch(val);
       }
     }
   };
 
-  const handleSortSelect = (option) => {
+  // Adapted to handle the synthetic event from InputSelect
+  const handleSortSelect = (e) => {
+    const option = e.target.value;
     setSelectedSort(option);
-    setIsSortOpen(false);
     if (onSortChange) onSortChange(option);
   };
 
@@ -48,69 +48,59 @@ const SearchBar = ({
   };
 
   return (
-    <div className={`flex w-full justify-between items-center gap-2 ${className}`}>
-      {/* Search zone */}
-      <div className='group w-full'>
-        <div className='flex items-center border focus-within:ring-2 focus-within:ring-offset-2 border-txt-dark transition-all duration-200 focus-within:outline-none group-focus-within:ring-border gap-2 py-2 px-6 rounded-lg bg-surface'>
-          <div className='text-txt-dark group-focus-within:text-txt-accent'>
-            <Search size={16} />
-          </div>
-          <input
-            type='text'
-            value={searchValue}
-            onChange={handleSearchChange}
-            placeholder='Search...'
-            className='font-medium font-roboto w-full bg-transparent text-sm text-txt-primary placeholder-txt-placeholder outline-none'
+    <div className={`flex flex-col md:flex-row w-full justify-between items-start md:items-center gap-3 ${className}`}>
+      
+      {/* Search Input using InputForm */}
+      <div className="w-full md:flex-1">
+        <InputForm
+          name="search"
+          placeholder="Search..."
+          value={searchValue}
+          onChange={handleSearchChange}
+          icon={Search}
+          // Remove default bottom margin/padding quirks if necessary via className
+          className="w-full" 
+        />
+      </div>
+
+      <div className="flex w-full md:w-auto gap-2 items-center">
+        {/* Sort Select using InputSelect */}
+        <div className="flex-1 md:w-54">
+          <InputSelect
+            name="sort"
+            value={selectedSort}
+            icon={ListFilterIcon}
+            options={sortOptions}
+            onChange={handleSortSelect}
+            placeholder="Sort by"
           />
         </div>
-      </div>
 
-      {/* Sort options */}
-      <div className='relative flex-1'>
-        <Button onClick={() => setIsSortOpen(!isSortOpen)}>
-          <div className='flex items-center gap-1'>
-            <ChevronDown size={16} className={`transition-transform duration-200 ${isSortOpen ? 'rotate-180' : ''}`} />
-            <span className='mr-2 text-sm truncate'>Sort by {selectedSort}</span>
-          </div>
-        </Button>
-
-        {/* Dropdown Menu */}
-        {isSortOpen && (
-          <div className="absolute top-full mt-2 right-0 w-full bg-surface p-2 flex flex-col gap-2 shadow-sm shadow-secondary-accent rounded-lg z-10 overflow-hidden">
-            {sortOptions.map((option) => (
-              <button
-                key={option}
-                onClick={() => handleSortSelect(option)}
-                className={`w-full text-left px-4 py-2 text-sm font-medium font-outfit hover:bg-secondary-accent hover:text-txt-light rounded-md transition-colors ${selectedSort === option ? 'text-txt-light font-medium font-outfit bg-primary-accent' : 'text-txt-primary'}`}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Sort direction button */}
-      <div className=''>
-        <Button
-          variant='secondary'
-          onClick={handleDirectionToggle}
-          title={`Switch to ${isAscending ? 'Descending' : 'Ascending'}`}
-        >
-          <div className='flex gap-1 h-full items-center'>
-            {isAscending ? (
-              <>
-                <ArrowUpAZ size={16} />
-                <span className="text-sm font-medium font-outfit"> ASC</span>
-              </>
-            ) : (
-              <>
-                <ArrowDownAZ size={16} />
-                <span className="text-sm font-medium font-outfit"> DESC</span>
-              </>
-            )}
-          </div>
-        </Button>
+        {/* Sort Direction Toggle */}
+        {/* We keep the Button because InputSelect/Form doesn't cover a toggle button use case */}
+        <div className="h-full">
+          <Button
+            variant='secondary'
+            onClick={handleDirectionToggle}
+            title={`Switch to ${isAscending ? 'Descending' : 'Ascending'}`}
+            // Add height to match InputForm/InputSelect standard height (approx 52px-56px based on py-3)
+            className="h-[52px] flex items-center justify-center" 
+          >
+            <div className='flex gap-1 items-center'>
+              {isAscending ? (
+                <>
+                  <ArrowUpAZ size={20} />
+                  <span className="hidden lg:inline text-sm font-medium font-outfit">ASC</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownAZ size={20} />
+                  <span className="hidden lg:inline text-sm font-medium font-outfit">DESC</span>
+                </>
+              )}
+            </div>
+          </Button>
+        </div>
       </div>
     </div>
   );

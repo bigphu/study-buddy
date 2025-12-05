@@ -5,12 +5,13 @@ import Button from './Button.jsx';
 const CardProfile = ({
   user,
   stats = { courses: 0, sessions: 0 },
+  allowEdit = false,
   onEditProfile,
   className = ''
 }) => {
   if (!user) return null;
 
-  const isTutor = user.role === 'tutor';
+  const isTutor = user.role === 'Tutor';
   
   // --- VISUAL THEME ---
   const theme = isTutor ? {
@@ -33,7 +34,7 @@ const CardProfile = ({
     <div className={`w-full bg-white rounded-3xl border ${theme.border} shadow-sm overflow-hidden flex flex-col ${className}`}>
       
       {/* Header Section */}
-      <div className={`${theme.bgHeader} p-6 relative flex justify-between items-start h-24`}>
+      <div className={`${theme.bgHeader} p-6 relative flex justify-between items-start h-36`}>
         {/* Avatar Placeholder */}
         <div className="bg-white rounded-2xl shadow-sm p-3 inline-flex items-center justify-center border border-white/50">
           <User size={32} className={theme.iconColor} />
@@ -101,18 +102,21 @@ const CardProfile = ({
         </div>
 
         {/* Edit Action */}
-        <div className="mt-4">
-          <Button 
-            onClick={onEditProfile} 
-            variant="secondary" 
-            className="w-full justify-center"
-          >
-            <div className="flex items-center justify-center gap-2">
-              <Edit3 size={16} />
-              <span>Edit Profile</span>
+        { allowEdit && (
+            <div className="mt-4">
+              <Button 
+                onClick={onEditProfile} 
+                variant="secondary" 
+                className="w-full justify-center"
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <Edit3 size={16} />
+                  <span>Edit Profile</span>
+                </div>
+              </Button>
             </div>
-          </Button>
-        </div>
+          )
+        }
       </div>
     </div>
   );

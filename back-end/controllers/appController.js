@@ -4,11 +4,11 @@ const db = require('../config/db');
 exports.getProfile = async (req, res) => {
   try {
     // Target user ID can be passed in query, or default to current user
-    const targetId = req.query.targetId || req.user.id;
+    const targetUsername = req.query.username || req.user.username;
     
     const [rows] = await db.query(
       'CALL sp_get_user_profile(?, ?, ?)', 
-      [req.user.id, req.user.role, targetId]
+      [req.user.id, req.user.role, targetUsername]
     );
     
     res.json(rows[0][0]); // Return the single profile object
@@ -48,10 +48,11 @@ exports.enroll = async (req, res) => {
 // 4. Get Sessions (Dashboard)
 exports.getSessions = async (req, res) => {
   const { courseCode } = req.params; // /api/sessions/:courseCode
+  const viewMode = req.query.view || 'Booked';
   try {
     const [rows] = await db.query(
-      'CALL sp_get_sessions_by_course(?, ?, ?)', 
-      [req.user.id, req.user.role, courseCode]
+      'CALL sp_get_sessions_by_course(?, ?, ?, ?)', 
+      [req.user.id, req.user.role, courseCode, viewMode]
     );
     res.json(rows[0]);
   } catch (error) {

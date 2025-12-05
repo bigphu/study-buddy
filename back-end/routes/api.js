@@ -16,9 +16,9 @@ router.get('/courses/available', verifyToken, appController.getAvailableCourses)
 router.post('/enroll', verifyToken, appController.enroll);
 
 router.get('/sessions/all', verifyToken, appController.getAllSessions);
-router.get('/sessions/:courseCode', verifyToken, appController.getSessions);
 router.post('/sessions/create', verifyToken, appController.createSession);
 router.post('/sessions/book', verifyToken, appController.bookSession);
+router.get('/sessions/:courseCode', verifyToken, appController.getSessions);
 
 router.get('/tutors', verifyToken, appController.getAllTutors); // Ensure this matches Discovery fetch
 

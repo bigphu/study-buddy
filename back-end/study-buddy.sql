@@ -69,12 +69,14 @@ CREATE TABLE `Bookings` (
 DELIMITER $$
 
 -- Check End Time > Start Time
+DROP TRIGGER IF EXISTS `check_session_time_insert` $$
 CREATE TRIGGER `check_session_time_insert` BEFORE INSERT ON `Sessions`
 FOR EACH ROW BEGIN
     IF NEW.end_time <= NEW.start_time THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'End time must be after Start time'; END IF;
 END $$
 
 -- Check Tutor Availability (Overlap)
+DROP TRIGGER IF EXISTS `check_tutor_overlap_insert` $$
 CREATE TRIGGER `check_tutor_overlap_insert` BEFORE INSERT ON `Sessions`
 FOR EACH ROW BEGIN
     IF EXISTS (SELECT 1 FROM `Sessions` WHERE `tutor_id` = NEW.tutor_id AND (NEW.start_time < `end_time` AND NEW.end_time > `start_time`)) THEN
@@ -83,12 +85,47 @@ FOR EACH ROW BEGIN
 END $$
 
 -- Check Student Enrollment before Booking
+DROP TRIGGER IF EXISTS `check_enrollment_before_booking` $$
 CREATE TRIGGER `check_enrollment_before_booking` BEFORE INSERT ON `Bookings`
 FOR EACH ROW BEGIN
     DECLARE v_course_id INT;
     SELECT `course_id` INTO v_course_id FROM `Sessions` WHERE `id` = NEW.session_id;
     IF NOT EXISTS (SELECT 1 FROM `Enrollments` WHERE `student_id` = NEW.student_id AND `course_id` = v_course_id) THEN
         SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Student is not enrolled in this course';
+    END IF;
+END $$
+
+DROP TRIGGER IF EXISTS `check_student_overlap_booking` $$
+CREATE TRIGGER `check_student_overlap_booking` BEFORE INSERT ON `Bookings`
+FOR EACH ROW BEGIN
+    DECLARE v_new_start DATETIME;
+    DECLARE v_new_end DATETIME;
+    DECLARE v_new_type VARCHAR(20);
+
+    -- 1. Get start time, end time, AND TYPE of the session being booked
+    SELECT `start_time`, `end_time`, `session_type` 
+    INTO v_new_start, v_new_end, v_new_type
+    FROM `Sessions`
+    WHERE `id` = NEW.session_id;
+
+    -- 2. LOGIC: Only proceed if the NEW session is a "Meeting"
+    IF v_new_type = 'Meeting' THEN
+    
+        -- 3. Check for overlap against existing bookings that are ALSO "Meetings"
+        IF EXISTS (
+            SELECT 1
+            FROM `Bookings` b
+            JOIN `Sessions` s ON b.session_id = s.id
+            WHERE b.student_id = NEW.student_id 
+            AND s.id != NEW.session_id      -- Safety check
+            AND s.session_type = 'Meeting'  -- Strict: Only clash if existing is also a Meeting
+            AND s.start_time IS NOT NULL    -- Ignore undefined times
+            AND (v_new_start < s.end_time AND v_new_end > s.start_time) -- Overlap Formula
+        ) THEN
+            SIGNAL SQLSTATE '45000' 
+            SET MESSAGE_TEXT = 'Conflict: You already have another live Meeting scheduled at this time.';
+        END IF;
+        
     END IF;
 END $$
 
@@ -116,22 +153,48 @@ END $$
 
 -- 3.2 Profile & Dashboard
 DROP PROCEDURE IF EXISTS `sp_get_user_profile` $$
-CREATE PROCEDURE `sp_get_user_profile`(IN p_user_id INT, IN p_role VARCHAR(20), IN p_target_id INT)
+
+CREATE PROCEDURE `sp_get_user_profile`(
+    IN p_user_id INT,               -- Requesting user's ID (kept for consistency)
+    IN p_role VARCHAR(20),          -- Requesting user's Role (kept for consistency)
+    IN p_target_username VARCHAR(50) -- CHANGED: Now takes username string
+)
 BEGIN
     DECLARE v_c_count INT DEFAULT 0;
     DECLARE v_s_count INT DEFAULT 0;
     DECLARE v_target_role VARCHAR(20);
-    SELECT `role` INTO v_target_role FROM `Users` WHERE `id` = p_target_id;
-    
-    IF v_target_role = 'Tutor' THEN
-        SELECT COUNT(*) INTO v_c_count FROM `Courses` WHERE `tutor_id` = p_target_id;
-        SELECT COUNT(*) INTO v_s_count FROM `Sessions` WHERE `tutor_id` = p_target_id;
-    ELSE
-        SELECT COUNT(*) INTO v_c_count FROM `Enrollments` WHERE `student_id` = p_target_id;
-        SELECT COUNT(*) INTO v_s_count FROM `Bookings` WHERE `student_id` = p_target_id;
-    END IF;
+    DECLARE v_target_id INT; -- Variable to hold the converted ID
 
-    SELECT id, username, role, full_name, academic_status, bio, v_c_count AS stat_courses, v_s_count AS stat_sessions FROM `Users` WHERE id = p_target_id;
+    -- 1. Get the ID and Role based on the provided Username
+    SELECT `id`, `role` INTO v_target_id, v_target_role 
+    FROM `Users` 
+    WHERE `username` = p_target_username;
+    
+    -- 2. Check logic based on the retrieved ID
+    IF v_target_id IS NOT NULL THEN
+        IF v_target_role = 'Tutor' THEN
+            -- Count courses taught and sessions hosted
+            SELECT COUNT(*) INTO v_c_count FROM `Courses` WHERE `tutor_id` = v_target_id;
+            SELECT COUNT(*) INTO v_s_count FROM `Sessions` WHERE `tutor_id` = v_target_id;
+        ELSE
+            -- Count courses enrolled and sessions booked
+            SELECT COUNT(*) INTO v_c_count FROM `Enrollments` WHERE `student_id` = v_target_id;
+            SELECT COUNT(*) INTO v_s_count FROM `Bookings` WHERE `student_id` = v_target_id;
+        END IF;
+
+        -- 3. Return the result
+        SELECT 
+            id, 
+            username, 
+            role, 
+            full_name, 
+            academic_status, 
+            bio, 
+            v_c_count AS stat_courses, 
+            v_s_count AS stat_sessions 
+        FROM `Users` 
+        WHERE id = v_target_id;
+    END IF;
 END $$
 
 DROP PROCEDURE IF EXISTS `sp_get_all_user_sessions` $$
@@ -140,21 +203,8 @@ CREATE PROCEDURE `sp_get_all_user_sessions`(
     IN p_role VARCHAR(20)
 )
 BEGIN
-    -- =============================================
-    -- SCENARIO 1: STUDENT
-    -- =============================================
     IF p_role = 'Student' THEN
-        SELECT 
-            s.id, 
-            s.course_id,               -- Added: Required by Calendar.jsx
-            s.title, 
-            -- Force Date to String format 'YYYY-MM-DD HH:MM:SS' to match your frontend .replace() logic
-            DATE_FORMAT(s.start_time, '%Y-%m-%d %H:%i:%s') as start_time, 
-            DATE_FORMAT(s.end_time, '%Y-%m-%d %H:%i:%s') as end_time, 
-            s.link, 
-            s.session_type, 
-            c.course_code, 
-            u.full_name AS member_name
+        SELECT s.id, s.title, s.start_time, end_time, s.link, s.session_type, c.course_code, u.full_name AS member_name
         FROM `Bookings` b
         JOIN `Sessions` s ON b.session_id = s.id
         JOIN `Courses` c ON s.course_id = c.id
@@ -162,20 +212,8 @@ BEGIN
         WHERE b.student_id = p_user_id
         ORDER BY s.start_time ASC;
 
-    -- =============================================
-    -- SCENARIO 2: TUTOR
-    -- =============================================
     ELSE
-        SELECT 
-            s.id, 
-            s.course_id,               -- Added
-            s.title, 
-            DATE_FORMAT(s.start_time, '%Y-%m-%d %H:%i:%s') as start_time, 
-            DATE_FORMAT(s.end_time, '%Y-%m-%d %H:%i:%s') as end_time, 
-            s.link, 
-            s.session_type, 
-            c.course_code, 
-            u.full_name AS member_name
+        SELECT s.id, s.title, s.start_time, end_time, s.link, s.session_type, c.course_code, u.full_name AS member_name
         FROM `Sessions` s
         JOIN `Courses` c ON s.course_id = c.id
         JOIN `Users` u ON c.tutor_id = u.id
@@ -258,11 +296,142 @@ BEGIN
     -- For this specific page, we return ALL sessions if student is enrolled, 
     -- but we can filter by booking if required. 
     -- Current logic: Show all available sessions in the course (MyLinks page)
-    SELECT s.id, s.course_id, s.title, s.start_time, s.end_time, s.link, s.session_type, u.full_name AS member_name
+    SELECT s.id, s.course_id, s.title, c.course_code, s.start_time, s.end_time, s.link, s.session_type, u.full_name AS member_name
     FROM `Sessions` s
     JOIN `Users` u ON s.tutor_id = u.id
+    JOIN `Courses` c ON s.course_id = c.id
     WHERE s.course_id = v_cid
     ORDER BY s.start_time ASC;
+END $$
+
+DELIMITER $$
+
+-- =======================================================
+-- 3.5 Student Enrollment
+-- Query: CALL sp_enroll_student(req.user.id, req.user.role, courseCode)
+-- =======================================================
+DROP PROCEDURE IF EXISTS `sp_enroll_student` $$
+CREATE PROCEDURE `sp_enroll_student`(
+    IN p_user_id INT, 
+    IN p_role VARCHAR(20), 
+    IN p_course_code VARCHAR(20)
+)
+BEGIN
+    DECLARE v_course_id INT;
+
+    -- 1. Security Check: Only Students can enroll
+    IF p_role <> 'Student' THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Access Denied: Only students can enroll in courses.'; 
+    END IF;
+
+    -- 2. Find Course ID
+    SELECT `id` INTO v_course_id FROM `Courses` WHERE `course_code` = p_course_code;
+    
+    IF v_course_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Course not found.'; 
+    END IF;
+
+    -- 3. Check Duplicate Enrollment
+    IF EXISTS (SELECT 1 FROM `Enrollments` WHERE `student_id` = p_user_id AND `course_id` = v_course_id) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You are already enrolled in this course.';
+    END IF;
+
+    -- 4. Insert Enrollment
+    INSERT INTO `Enrollments` (`student_id`, `course_id`) 
+    VALUES (p_user_id, v_course_id);
+
+    -- Return success message or ID
+    SELECT LAST_INSERT_ID() AS enrollment_id, 'Enrollment Successful' as message;
+END $$
+
+
+-- =======================================================
+-- 3.6 Create Session
+-- Query: CALL sp_create_session(id, role, code, start, end, title, link, type, assignMode)
+-- =======================================================
+DROP PROCEDURE IF EXISTS `sp_create_session` $$
+CREATE PROCEDURE `sp_create_session`(
+    IN p_user_id INT,
+    IN p_role VARCHAR(20),
+    IN p_course_code VARCHAR(20),
+    IN p_start_time DATETIME,
+    IN p_end_time DATETIME,
+    IN p_title VARCHAR(255),
+    IN p_link VARCHAR(255),
+    IN p_type VARCHAR(20),      -- 'Meeting', 'Quiz', etc.
+    IN p_assign_mode VARCHAR(20) -- 'Manual' or 'Auto_All'
+)
+BEGIN
+    DECLARE v_course_id INT;
+    DECLARE v_session_id INT;
+
+    -- 1. Security Check: Only Tutors (or Admin) can create sessions
+    IF p_role <> 'Tutor' AND p_role <> 'Admin' THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Access Denied: Only tutors can create sessions.'; 
+    END IF;
+
+    -- 2. Verify Course Ownership
+    -- Ensure the course exists AND belongs to this specific Tutor
+    SELECT `id` INTO v_course_id 
+    FROM `Courses` 
+    WHERE `course_code` = p_course_code AND `tutor_id` = p_user_id;
+
+    IF v_course_id IS NULL THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Course not found or you are not the tutor for this course.'; 
+    END IF;
+
+    -- 3. Insert Session
+    -- (Triggers check_session_time_insert and check_tutor_overlap_insert will fire here automatically)
+    IF p_session_type = 'Document' THEN
+        SET p_start_time = NULL;
+        SET p_end_time = NULL;
+    END IF;
+    
+    INSERT INTO `Sessions` (`course_id`, `tutor_id`, `start_time`, `end_time`, `title`, `link`, `session_type`, `assign_mode`)
+    VALUES (v_course_id, p_user_id, p_start_time, p_end_time, p_title, p_link, p_type, p_assign_mode);
+
+    SET v_session_id = LAST_INSERT_ID();
+
+    -- 4. Handle "Auto_All" Logic
+    -- If assign_mode is Auto_All, automatically book this session for ALL currently enrolled students
+    IF p_assign_mode = 'Auto_All' THEN
+        INSERT INTO `Bookings` (`student_id`, `session_id`)
+        SELECT `student_id`, v_session_id
+        FROM `Enrollments`
+        WHERE `course_id` = v_course_id;
+    END IF;
+
+    SELECT v_session_id AS new_session_id, 'Session Created' as message;
+END $$
+
+
+-- =======================================================
+-- 3.7 Book Session (Student)
+-- Query: CALL sp_book_session(req.user.id, req.user.role, sessionId)
+-- =======================================================
+DROP PROCEDURE IF EXISTS `sp_book_session` $$
+CREATE PROCEDURE `sp_book_session`(
+    IN p_user_id INT,
+    IN p_role VARCHAR(20),
+    IN p_session_id INT
+)
+BEGIN
+    -- 1. Security Check: Only Students book
+    IF p_role <> 'Student' THEN 
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Access Denied: Only students can book sessions.'; 
+    END IF;
+
+    -- 2. Check if already booked
+    IF EXISTS (SELECT 1 FROM `Bookings` WHERE `student_id` = p_user_id AND `session_id` = p_session_id) THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'You have already booked this session.';
+    END IF;
+
+    -- 3. Insert Booking
+    -- (Trigger check_enrollment_before_booking will fire here to ensure they are enrolled in the course)
+    INSERT INTO `Bookings` (`student_id`, `session_id`)
+    VALUES (p_user_id, p_session_id);
+
+    SELECT LAST_INSERT_ID() AS booking_id, 'Booking Successful' as message;
 END $$
 
 DELIMITER ;
@@ -299,17 +468,17 @@ INSERT INTO `Enrollments` (`student_id`, `course_id`) VALUES
 INSERT INTO `Sessions` (`id`, `course_id`, `tutor_id`, `start_time`, `end_time`, `link`, `title`, `session_type`) VALUES
 -- 1. Nhập môn Lập trình
 (1, 1, 1, NULL, NULL, 'meet.google.com/co1005-01', 'CO1005 - Nhập môn Lập trình', 'Meeting'), 
-(2, 1, 1, '2025-12-03 07:00:00', '2025-12-03 10:00:00', 'meet.google.com/co1005-02', 'CO1005 - Nhập môn Lập trình', 'Meeting'),
+(2, 1, 1, '2025-12-06 07:00:00', '2025-12-06 10:00:00', 'meet.google.com/co1005-02', 'CO1005 - Nhập môn Lập trình', 'Meeting'),
 
 -- 2. Cấu trúc dữ liệu
-(4, 2, 1, '2025-12-02 09:00:00', '2025-12-02 11:30:00', 'meet.google.com/dsa-01', 'CO2003 - Cấu trúc Dữ liệu (Midterm Quiz)', 'Quiz'),
-(5, 2, 1, '2025-12-04 09:00:00', '2025-12-04 11:30:00', 'meet.google.com/dsa-02', 'CO2003 - Cấu trúc Dữ liệu & Giải thuật', 'Meeting'),
+(4, 2, 1, '2025-12-08 09:00:00', '2025-12-08 11:30:00', 'meet.google.com/dsa-01', 'CO2003 - Cấu trúc Dữ liệu (Midterm Quiz)', 'Quiz'),
+(5, 2, 1, '2025-12-09 09:00:00', '2025-12-09 11:30:00', 'meet.google.com/dsa-02', 'CO2003 - Cấu trúc Dữ liệu & Giải thuật', 'Meeting'),
 
 -- 6. Cơ sở dữ liệu
-(16, 6, 4, '2025-12-02 14:00:00', '2025-12-02 17:00:00', 'teams.microsoft.com/db-01', 'CO2013 - Hệ Cơ sở dữ liệu (Reading Material)', 'Document'),
+(16, 6, 4, '2025-12-11 14:00:00', '2025-12-11 17:00:00', 'teams.microsoft.com/db-01', 'CO2013 - Hệ Cơ sở dữ liệu (Reading Material)', 'Document'),
 
 -- 7. Lập trình Web
-(19, 7, 4, '2025-12-07 08:00:00', '2025-12-07 11:00:00', 'teams.microsoft.com/web-01', 'CO3049 - Lập trình Web (Course Survey)', 'Form'),
+(19, 7, 4, '2025-12-07 11:00:00', '2025-12-07 21:00:00', 'teams.microsoft.com/web-01', 'CO3049 - Lập trình Web (Course Survey)', 'Form'),
 
 -- 4. Trí tuệ nhân tạo
 (10, 4, 3, '2025-12-10 13:00:00', '2025-12-20 16:00:00', 'zoom.us/ai-01', 'CO3001 - Trí tuệ Nhân tạo (AI)', 'Meeting');

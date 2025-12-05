@@ -14,8 +14,9 @@ import Dashboard from '../src/pages/Dashboard.jsx';
 import LinksCenter from '../src/pages/LinksCenter.jsx';
 import Discovery from '../src/pages/Discovery.jsx';
 import Profile from '../src/pages/Profile.jsx';
-import MySessions from './pages/MySessions.jsx'; // NEW PAGE
+import MySessions from './pages/MySessions.jsx'; 
 import Page404 from '../src/pages/Page404.jsx';
+import CreateSession from './pages/CreateSession.jsx';
 
 const ProtectedRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -44,10 +45,11 @@ const MainLayout = () => {
           <Route path='/dashboard' element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
           
           <Route path='/linkscenter' element={<ProtectedRoute><LinksCenter /></ProtectedRoute>} />
-          <Route path='/mysessions/:courseCode' element={<ProtectedRoute><MySessions /></ProtectedRoute>} /> {/* NEW ROUTE */}
+          <Route path='/mysessions/:courseCode' element={<ProtectedRoute><MySessions /></ProtectedRoute>} /> 
+          <Route path="/create-session/:courseCode" element={<ProtectedRoute><CreateSession /></ProtectedRoute>} />
 
           <Route path='/profile' element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path='/profile/:username' element={<ProtectedRoute><Profile /></ProtectedRoute>} /> {/* NEW ROUTE */}
+          <Route path='/profile/:username' element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
           <Route path='*' element={<Page404 />} />
         </Routes>

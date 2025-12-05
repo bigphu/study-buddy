@@ -80,6 +80,7 @@ const Profile = () => {
         <CardProfile 
           user={userProfile} 
           stats={stats} 
+          allowEdit={isOwnProfile}
           onEditProfile={isOwnProfile ? () => alert("Edit Modal") : undefined}
         />
       </div>

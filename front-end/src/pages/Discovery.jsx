@@ -9,6 +9,7 @@ import CardUser from '../components/CardUser.jsx';
 import CardCourse from '../components/CardCourse.jsx'; 
 import Pagination from '../components/Pagination.jsx';
 import Loading from '../components/Loading.jsx';
+import ViewToggle from '../components/ViewToggle.jsx';
 
 const ITEMS_PER_PAGE = 12;
 
@@ -27,6 +28,11 @@ const STATUS_RANK = {
   'Processing': 2,
   'Ended': 1
 };
+
+const VIEW_OPTIONS = [
+  { id: 'tutors', label: 'Tutors', icon: Users },
+  { id: 'courses', label: 'Courses', icon: BookOpen }
+];
 
 const Discovery = () => {
   // --- State ---
@@ -111,19 +117,20 @@ const Discovery = () => {
       // NOTE: Backend returns 'course_code', 'member_name' (aliased), 'title', 'status'
       const attributeMap = [
         { prefix: 'title:', key: 'title' },
-        { prefix: 'name:', key: 'title' },
+        { prefix: 'name:', key: 'full_name' },
         { prefix: 'status:', key: 'status' },
         { prefix: 'course:', key: 'course_code' },
         { prefix: 'member:', key: 'member_name' },
         { prefix: 'academic_status:', key: 'academic_status'},
         { prefix: 'rank:', key: 'academic_status'},
+        { prefix: 'show-all', key: ''},
       ];
 
       const matchedFilter = attributeMap.find(attr => query.startsWith(attr.prefix));
 
       if (matchedFilter) {
         const valueToFind = query.replace(matchedFilter.prefix, '').trim();
-        if (valueToFind) {
+        if (valueToFind && valueToFind !== 'show-all') {
           result = result.filter(item => 
             item[matchedFilter.key]?.toString().toLowerCase().includes(valueToFind)
           );
@@ -211,24 +218,15 @@ const Discovery = () => {
 
       <div className='col-start-4 col-span-6 flex flex-col gap-4'>
         {/* Toggle Buttons */}
-        <div className="flex bg-white p-1 rounded-xl border border-gray-200 shadow-sm self-center">
-            <button
-                onClick={() => { setViewMode('tutors'); setSortBy('Full Name'); }}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-outfit font-bold transition-all ${
-                    viewMode === 'tutors' ? 'bg-primary-accent text-white shadow-sm' : 'text-txt-placeholder hover:bg-gray-50'
-                }`}
-            >
-                <Users size={18} /> Tutors
-            </button>
-            <button
-                onClick={() => { setViewMode('courses'); setSortBy('Title'); }}
-                className={`flex items-center gap-2 px-6 py-2 rounded-lg font-outfit font-bold transition-all ${
-                    viewMode === 'courses' ? 'bg-primary-accent text-white shadow-sm' : 'text-txt-placeholder hover:bg-gray-50'
-                }`}
-            >
-                <BookOpen size={18} /> Courses
-            </button>
-        </div>
+        <ViewToggle 
+          options={VIEW_OPTIONS}
+          activeId={viewMode}
+          onToggle={(selectedId) => {
+            setViewMode(selectedId);
+            // Handle the side-effects of switching views
+            setSortBy(selectedId === 'tutors' ? 'Full Name' : 'Title');
+          }}
+        />
 
         {/* --- 3. UPDATED SEARCH BAR PROPS --- */}
         <SearchBar
@@ -241,11 +239,14 @@ const Discovery = () => {
             ? ['Full Name', 'Academic Status'] 
             : ['Title', 'Course Code', 'Status'] // Added Status here
           }
-          defaultSearchValue=""
+          defaultSearchValue="show-all"
           // Reset default sort when switching tabs to avoid "Status" sorting on Tutors
           defaultSort={viewMode === 'tutors' ? 'Full Name' : 'Title'}
           defaultDirection="asc"
         />
+        <div className="text-sm font-medium font-roboto text-txt-accent text-center mt-2">
+          Try: "name:Khoa", "title:web", "status:ongoing", "course:CO2003", "member:Khoa", "academic_status:phd", "rank:phd" or "show-all"
+        </div>
       </div>
 
       <Tray 
@@ -270,9 +271,9 @@ const Discovery = () => {
             viewMode === 'tutors' ? (
                 <CardUser 
                     key={item.id}
-                    itemId={`${item.id}`}
+                    itemId={`${item.username}`}
                     memberName={item.full_name} 
-                    title={item.bio ? item.bio.substring(0, 30) + '...' : 'Tutor'} 
+                    title={item.full_name} 
                     description={item.bio}
                     academicStatus={item.academic_status} 
                     onAction={() => navigate(`/profile/${item.username}`)}
@@ -291,7 +292,7 @@ const Discovery = () => {
             )
           ))
         ) : (
-          <div className="col-span-full text-center py-10 text-txt-placeholder">
+          <div className="col-span-full text-center text-sm font-medium font-roboto text-txt-dark py-10">
             {viewMode === 'tutors' ? 'No tutors found.' : 'No new courses available to enroll.'}
           </div>
         )}

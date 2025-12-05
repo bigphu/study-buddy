@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
+import { User, Lock } from 'lucide-react';
 import Tray from '../components/Tray.jsx';
 import Button from '../components/Button.jsx';
 import Loading from '../components/Loading.jsx';
+import InputForm from '../components/InputForm.jsx';
 
 const Login = () => {
   const [username, setUsername] = useState('');
@@ -54,7 +56,7 @@ const Login = () => {
       </div>
 
       {/* Centered Tray */}
-      <Tray pos='col-start-4' size='col-span-6' className='mt-4'>
+      <Tray pos='col-start-4' size='col-span-6'>
         <form onSubmit={handleSubmit} className="flex flex-col gap-6 w-full px-4 py-2">
           
           {error && (
@@ -63,55 +65,44 @@ const Login = () => {
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">
-              Username
-            </label>
-            <input 
-              type="text" 
-              required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary-accent focus:ring-1 focus:ring-primary-accent transition-all outline-none font-roboto text-txt-dark"
-              placeholder="Enter your username"
-            />
-          </div>
+          {/* New Input Components */}
+          <InputForm
+            label="Username"
+            name="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Enter your username"
+            icon={User} // Pass the icon component
+            required
+          />
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">
-              Password
-            </label>
-            <input 
-              type="password" 
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full p-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary-accent focus:ring-1 focus:ring-primary-accent transition-all outline-none font-roboto text-txt-dark"
-              placeholder="••••••••"
-            />
-          </div>
+          <InputForm
+            label="Password"
+            type="password"
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            icon={Lock}
+            required
+          />
 
           <div className="flex flex-col gap-4 mt-2">
-            <Button 
-              type="submit" 
-              isLoading={isSubmitting} 
-              className="w-full"
-            >
+            <Button type="submit" isLoading={isSubmitting} className="w-full">
               Sign In
             </Button>
-            
-            <div className="text-center text-sm font-roboto text-txt-placeholder">
-              Don't have an account?{' '}
-              <Link to="/register" className="text-primary-accent font-bold hover:underline">
-                Register here
-              </Link>
-            </div>
           </div>
 
+          <div className="text-center text-sm font-roboto text-txt-placeholder">
+              Don't have an account?{' '}
+              <Link to="/register" className="text-txt-accent font-bold hover:underline">
+                Register here
+              </Link>
+          </div>
         </form>
       </Tray>
 
-      <div className='col-start-2 col-span-10 p-8'></div>
+      <div className='col-start-2 col-span-10 p-20'></div>
     </>
   );
 };

@@ -59,13 +59,14 @@ const LinksCenter = () => {
         { prefix: 'status:', key: 'status' },
         { prefix: 'course:', key: 'course_code' },
         { prefix: 'member:', key: 'member_name' },
+        { prefix: 'show-all', key: ''},
       ];
 
       const matchedFilter = attributeMap.find(attr => query.startsWith(attr.prefix));
 
       if (matchedFilter) {
         const valueToFind = query.replace(matchedFilter.prefix, '').trim();
-        if (valueToFind) {
+        if (valueToFind && valueToFind !== 'show-all') {
           result = result.filter(item => 
             item[matchedFilter.key]?.toString().toLowerCase().includes(valueToFind)
           );
@@ -127,7 +128,7 @@ const LinksCenter = () => {
           defaultDirection="asc"
         />
         <div className="text-sm font-medium font-roboto text-txt-accent text-center mt-2">
-          Try: "type:quiz", "title:midterm", or "member:Khoa"
+          Try: "title:web", "status:ongoing", "course:CO2003", "member:Khoa" or "show-all"
         </div>
       </div>
 
@@ -162,7 +163,7 @@ const LinksCenter = () => {
             />
           ))
         ) : (
-          <div className="col-span-full text-center font-medium font-roboto text-txt-dark py-10">
+          <div className="col-span-full text-center text-sm font-medium font-roboto text-txt-dark py-10">
             No results found.
           </div>
         )}

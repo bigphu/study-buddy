@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { User, Lock, Briefcase, GraduationCap } from 'lucide-react';
+import InputSelect from '../components/InputSelect.jsx';
 import Tray from '../components/Tray.jsx';
 import Button from '../components/Button.jsx';
+import InputForm from '../components/InputForm.jsx';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -69,44 +72,61 @@ const Register = () => {
 
           {/* Left Column */}
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Full Name</label>
-              <input name="fullName" required onChange={handleChange} className="input-std" placeholder="John Doe" />
-            </div>
+            <InputForm
+              label="Full Name"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              placeholder="John Doe"
+              icon={User}
+              required
+            />
             
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Username</label>
-              <input name="username" required onChange={handleChange} className="input-std" placeholder="johndoe123" />
-            </div>
+            <InputForm
+              label="Username"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              placeholder="johndoe123"
+              icon={User}
+              required
+            />
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Password</label>
-              <input name="password" type="password" required onChange={handleChange} className="input-std" placeholder="••••••••" />
-            </div>
+            <InputForm
+              label="Password"
+              name="password"
+              type="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="••••••••"
+              icon={Lock}
+              required
+            />
           </div>
 
           {/* Right Column */}
           <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Role</label>
-              <select name="role" onChange={handleChange} className="input-std h-[50px]">
-                <option value="Student">Student</option>
-                <option value="Tutor">Tutor</option>
-              </select>
-            </div>
+            {/* Role Selection */}
+            <InputSelect
+              label="Role"
+              name="role"
+              value={formData.role}          // Controlled input: comes from state
+              onChange={handleChange}        // The generic handler
+              options={['Student', 'Tutor']} // The custom dropdown items
+              icon={Briefcase}               // The Lucide icon component
+            />
 
+            {/* Academic Status Selection */}
+            <InputSelect
+              label="Academic Status"
+              name="academicStatus"
+              value={formData.academicStatus}
+              onChange={handleChange}
+              options={['Student', 'Bachelor', 'Master', 'PhD', 'Professor']}
+              icon={GraduationCap}
+            />
+            
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Academic Status</label>
-              <select name="academicStatus" onChange={handleChange} className="input-std h-[50px]">
-                <option value="Student">Student</option>
-                <option value="Bachelor">Bachelor</option>
-                <option value="Master">Master</option>
-                <option value="PhD">PhD</option>
-                <option value="Professor">Professor</option>
-              </select>
-            </div>
-
-             <div className="flex flex-col gap-2">
               <label className="text-sm font-bold font-outfit text-txt-dark uppercase tracking-wider">Bio (Optional)</label>
               <textarea name="bio" rows="1" onChange={handleChange} className="input-std py-3" placeholder="Tell us about yourself..." />
             </div>
