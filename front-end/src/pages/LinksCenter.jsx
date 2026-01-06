@@ -12,6 +12,12 @@ import Button from '../components/Button.jsx'; // Ensure Button is imported
 
 const ITEMS_PER_PAGE = 12;
 
+const STATUS_RANK = {
+  'Ongoing': 3,
+  'Processing': 2,
+  'Ended': 1
+};
+
 const LinksCenter = () => {
   const [links, setLinks] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
@@ -21,9 +27,9 @@ const LinksCenter = () => {
   const navigate = useNavigate();
 
   // Search & Sort State
-  const [searchQuery, setSearchQuery] = useState('status:ongoing'); 
-  const [sortBy, setSortBy] = useState('Member name'); 
-  const [sortDirection, setSortDirection] = useState('asc'); 
+  const [searchQuery, setSearchQuery] = useState('show-all'); 
+  const [sortBy, setSortBy] = useState('Status'); 
+  const [sortDirection, setSortDirection] = useState('desc'); 
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -86,10 +92,32 @@ const LinksCenter = () => {
     result.sort((a, b) => {
       let valA = '', valB = '';
       switch (sortBy) {
-        case 'Member name': valA = a.member_name || ''; valB = b.member_name || ''; break;
-        case 'Title': valA = a.title || ''; valB = b.title || ''; break;
-        case 'Status': valA = a.status || ''; valB = b.status || ''; break;
-        default: valA = a.member_name || ''; valB = b.member_name || '';
+        case 'Full Name': // For Tutors
+        case 'Member name': // For Courses (if applicable)
+          valA = a.full_name || a.member_name; 
+          valB = b.full_name || b.member_name; 
+          break;
+          
+        case 'Title': 
+          valA = a.title; 
+          valB = b.title; 
+          break;
+        
+        case 'Course Code':
+            valA = a.course_code;
+            valB = b.course_code;
+            break;
+
+        // --- Custom Logic: Courses (NEW) ---
+        case 'Status':
+          // Default to 0 if status is not in the list
+          valA = STATUS_RANK[a.status] || 0;
+          valB = STATUS_RANK[b.status] || 0;
+          break;
+          
+        default: 
+          valA = a.full_name || a.title; 
+          valB = b.full_name || b.title;
       }
       if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
       if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
@@ -128,9 +156,9 @@ const LinksCenter = () => {
           onSortChange={setSortBy}
           onDirectionToggle={(dir) => setSortDirection(dir)}
           sortOptions={['Member Name', 'Title', 'Status']}
-          defaultSearchValue="status:ongoing"
-          defaultSort="Member Name"
-          defaultDirection="asc"
+          defaultSearchValue="show-all"
+          defaultSort="Status"
+          defaultDirection="desc"
         />
         <div className="text-sm font-medium font-roboto text-txt-accent text-center mt-2">
           Try: "title:web", "status:ongoing", "course:CO2003", "member:Khoa" or "show-all"

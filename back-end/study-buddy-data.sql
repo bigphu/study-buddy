@@ -11,7 +11,7 @@ INSERT INTO `Users` (`id`, `username`, `password`, `role`, `full_name`, `academi
 
 -- 4.2 Courses
 INSERT INTO `Courses` (`id`, `tutor_id`, `course_code`, `title`, `description`, `status`) VALUES
-(1, 1, 'CO1005', 'Nhập môn Lập trình', 'Introduction to Programming', 'Ongoing'),
+(1, 1, 'CO1005', 'Nhập môn Lập trình', 'Introduction to Programming', 'Ended'),
 (2, 1, 'CO2003', 'Cấu trúc Dữ liệu & Giải thuật', 'Data Structures and Algorithms', 'Ongoing'),
 (4, 3, 'CO3001', 'Trí tuệ Nhân tạo', 'Artificial Intelligence', 'Ongoing'),
 (6, 4, 'CO2013', 'Hệ Cơ sở dữ liệu', 'Database Systems', 'Ongoing'),
