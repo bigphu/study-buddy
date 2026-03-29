@@ -1,12 +1,12 @@
 # 🏫 Study Buddy
 
-I took the role as a fullstack developer in several key areas across the entire development cycle in this project. 
+I took the role as a **fullstack developer** in several key areas across the entire development cycle in this project. 
 
-In particular, I am responsible for the website **UI/UX design** using Figma, focusing on creating an intuitive, student-friendly layout.
+In particular, I am responsible for the website **UI/UX design** using **Figma**, focusing on creating an intuitive, student-friendly layout.
 
-Said design was brought to life by implementing a fully functional, responsive frontend utilizing the ReactJS framework. 
+Said design was brought to life by implementing a **fully functional, responsive frontend** utilizing the **ReactJS** framework. 
 
-Finally, I contributed to the architecture and development of the backend API using **ExpressJS**, ensuring seamless and efficient data flow between the client and server.
+Finally, I contributed to the architecture and development of the **backend API** using **ExpressJS**, ensuring seamless and efficient data flow between the client and server.
 
 ## 🪟 Project Overview
 
@@ -35,11 +35,11 @@ Ultimately, the system helps the university optimize resources, personalize supp
 
 - **Frontend:**
 
-  - React 19.2 with Vite build tool
+  - **React 19.2** with Vite build tool
 
   - React Router DOM for navigation
 
-  - Tailwind CSS for responsive design
+  - **Tailwind CSS** for responsive design
 
   - Lucide React icons library
 
@@ -47,19 +47,19 @@ Ultimately, the system helps the university optimize resources, personalize supp
 
 - **Backend:**
 
-  - Node.js with Express.js framework
+  - Node.js with **ExpressJS** framework
 
-  - MySQL database driver
+  - **MySQL** database driver
 
-  - JWT for authentication and authorization
+  - **JWT** for authentication and authorization
 
-  - bcryptjs for password encryption
+  - **bcryptjs** for password encryption
 
-  - CORS for cross-origin requests
+  - **CORS** for cross-origin requests
 
 - **Database:**
 
-  - MySQL with stored procedures and triggers for business logic
+  - **MySQL** with stored procedures and triggers for business logic
 
   - Automatic timestamp management
 
